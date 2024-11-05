@@ -1,0 +1,29 @@
+import Metashape
+
+# Function to perform alignment with custom keypoints and tie points
+def custom_alignment(chunk, keypoint_limit=50000, tiepoint_limit=10000):
+    chunk.matchPhotos(accuracy=Metashape.HighAccuracy, keypoint_limit=keypoint_limit, tiepoint_limit=tiepoint_limit)
+    chunk.alignCameras()
+    print("Alignment complete. Reprojection error:", chunk.error)
+
+# Function to filter out points with high reprojection error
+def filter_tie_points(chunk, reprojection_error=0.5):
+    f = Metashape.PointCloud.Filter()
+    f.init(chunk, Metashape.PointCloud.Filter.ReprojectionError)
+    f.removePoints(reprojection_error)
+    print(f"Filtered points with reprojection error above {reprojection_error}.")
+
+# Batch process images by segments
+def batch_process_by_segment(project_path, segment_paths):
+    doc = Metashape.app.document
+    doc.open(project_path)
+    for segment in segment_paths:
+        chunk = doc.addChunk()
+        chunk.addPhotos(segment)
+        custom_alignment(chunk)
+        filter_tie_points(chunk)
+        chunk.buildDenseCloud(quality=Metashape.HighQuality, filtering=Metashape.ModerateFiltering)
+        chunk.buildModel(surface_type=Metashape.Arbitrary, face_count=500000)
+        print(f"Processed segment: {segment}")
+    doc.save()
+    print("Batch processing by segment complete.")
